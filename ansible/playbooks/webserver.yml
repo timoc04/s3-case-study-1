@@ -1,1 +1,35 @@
+---
+- name: Configure Innovatech web servers
+  hosts: webservers
+  become: true
 
+  tasks:
+    - name: Install Nginx
+      ansible.builtin.dnf:
+        name: nginx
+        state: present
+
+    - name: Create Innovatech web page
+      ansible.builtin.copy:
+        dest: /usr/share/nginx/html/index.html
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Innovatech Solutions</title>
+          </head>
+          <body>
+              <h1>Innovatech Solutions</h1>
+              <p>This web server was configured automatically using Ansible.</p>
+              <p>Server: {{ inventory_hostname }}</p>
+          </body>
+          </html>
+
+    - name: Enable and start Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
