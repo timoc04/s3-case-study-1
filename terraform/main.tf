@@ -299,38 +299,49 @@ data "aws_ami" "amazon_linux" {
 }
 
 
+# IAM Role for EC2 Systems Manager access
+resource "aws_iam_role" "web_ssm" {
+  name = "${var.project_name}-web-ssm-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [{
+      Effect = "Allow"
+
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "web_ssm" {
+  role       = aws_iam_role.web_ssm.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "web" {
+  name = "${var.project_name}-web-instance-profile"
+  role = aws_iam_role.web_ssm.name
+}
+
+
 # Web Server Launch Template
 resource "aws_launch_template" "web" {
   name_prefix   = "${var.project_name}-web-"
   image_id      = data.aws_ami.amazon_linux.id
   instance_type = "t3.small"
 
+  iam_instance_profile {
+  name = aws_iam_instance_profile.web.name
+}
+
   vpc_security_group_ids = [
     aws_security_group.web.id
   ]
-
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    dnf update -y
-    dnf install -y nginx
-    systemctl enable nginx
-    systemctl start nginx
-
-    cat <<HTML > /usr/share/nginx/html/index.html
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Innovatech Solutions</title>
-      </head>
-      <body>
-        <h1>Innovatech Solutions</h1>
-        <p>Web server successfully deployed using Terraform.</p>
-        <p>Hostname: $(hostname)</p>
-      </body>
-    </html>
-    HTML
-  EOF
-  )
 
   tag_specifications {
     resource_type = "instance"
