@@ -69,3 +69,20 @@ output "database_private_route_table_id" {
   description = "ID of the private database route table"
   value       = aws_route_table.database_private.id
 }
+
+
+# Security Groups
+output "alb_security_group_id" {
+  description = "ID of the Application Load Balancer Security Group"
+  value       = aws_security_group.alb.id
+}
+
+output "web_security_group_id" {
+  description = "ID of the Web Server Security Group"
+  value       = aws_security_group.web.id
+}
+
+output "database_security_group_id" {
+  description = "ID of the Database Security Group"
+  value       = aws_security_group.database.id
+}
