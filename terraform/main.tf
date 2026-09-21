@@ -329,6 +329,16 @@ resource "aws_iam_instance_profile" "web" {
 }
 
 
+# S3 Bucket for Ansible SSM file transfers
+resource "aws_s3_bucket" "ansible_ssm" {
+  bucket_prefix = "${var.project_name}-ansible-ssm-"
+
+  tags = {
+    Name = "${var.project_name}-ansible-ssm"
+  }
+}
+
+
 # Web Server Launch Template
 resource "aws_launch_template" "web" {
   name_prefix   = "${var.project_name}-web-"

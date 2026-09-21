@@ -98,3 +98,8 @@ output "alb_target_group_arn" {
   description = "ARN of the web server target group"
   value       = aws_lb_target_group.web.arn
 }
+
+output "ansible_ssm_bucket_name" {
+  description = "S3 bucket used by Ansible for SSM file transfers"
+  value       = aws_s3_bucket.ansible_ssm.bucket
+}
