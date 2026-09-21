@@ -1,0 +1,18 @@
+plugin: amazon.aws.aws_ec2
+
+regions:
+  - eu-central-1
+
+filters:
+  tag:Name: innovatech-cs1-web
+  instance-state-name: running
+
+hostnames:
+  - instance-id
+
+groups:
+  webservers: true
+
+compose:
+  ansible_connection: '"community.aws.aws_ssm"'
+  ansible_aws_ssm_region: '"eu-central-1"'
