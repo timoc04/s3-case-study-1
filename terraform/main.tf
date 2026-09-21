@@ -280,3 +280,92 @@ resource "aws_security_group" "database" {
     Name = "${var.project_name}-database-sg"
   }
 }
+
+
+# Latest Amazon Linux 2023 AMI
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023.*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+
+# Web Server Launch Template
+resource "aws_launch_template" "web" {
+  name_prefix   = "${var.project_name}-web-"
+  image_id      = data.aws_ami.amazon_linux.id
+  instance_type = "t3.small"
+
+  vpc_security_group_ids = [
+    aws_security_group.web.id
+  ]
+
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    dnf update -y
+    dnf install -y nginx
+    systemctl enable nginx
+    systemctl start nginx
+
+    cat <<HTML > /usr/share/nginx/html/index.html
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Innovatech Solutions</title>
+      </head>
+      <body>
+        <h1>Innovatech Solutions</h1>
+        <p>Web server successfully deployed using Terraform.</p>
+        <p>Hostname: $(hostname)</p>
+      </body>
+    </html>
+    HTML
+  EOF
+  )
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = "${var.project_name}-web"
+    }
+  }
+}
+
+
+# Web Server Auto Scaling Group
+resource "aws_autoscaling_group" "web" {
+  name = "${var.project_name}-web-asg"
+
+  min_size         = 2
+  desired_capacity = 2
+  max_size         = 4
+
+  vpc_zone_identifier = [
+    aws_subnet.web_a.id,
+    aws_subnet.web_b.id
+  ]
+
+  launch_template {
+    id      = aws_launch_template.web.id
+    version = "$Latest"
+  }
+
+  health_check_type         = "EC2"
+  health_check_grace_period = 60
+
+  tag {
+    key                 = "Name"
+    value               = "${var.project_name}-web"
+    propagate_at_launch = true
+  }
+}
