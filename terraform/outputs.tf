@@ -103,3 +103,15 @@ output "ansible_ssm_bucket_name" {
   description = "S3 bucket used by Ansible for SSM file transfers"
   value       = aws_s3_bucket.ansible_ssm.bucket
 }
+
+
+# RDS Database
+output "database_endpoint" {
+  description = "Endpoint of the PostgreSQL RDS database"
+  value       = aws_db_instance.main.address
+}
+
+output "database_port" {
+  description = "Port of the PostgreSQL RDS database"
+  value       = aws_db_instance.main.port
+}
