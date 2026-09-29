@@ -332,6 +332,7 @@ resource "aws_iam_instance_profile" "web" {
 # S3 Bucket for Ansible SSM file transfers
 resource "aws_s3_bucket" "ansible_ssm" {
   bucket_prefix = "${var.project_name}-ansible-ssm-"
+  force_destroy = true
 
   tags = {
     Name = "${var.project_name}-ansible-ssm"
