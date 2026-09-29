@@ -1,0 +1,45 @@
+name: Infrastructure Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infrastructure.yml"
+
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    name: Deploy infrastructure
+    runs-on: self-hosted
+
+    env:
+        TF_VAR_db_password: ${{ secrets.TF_VAR_db_password }}
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Terraform installation
+        run: terraform version
+
+      - name: Terraform initialise
+        run: terraform init
+
+      - name: Terraform format check
+        run: terraform fmt -check
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve tfplan
