@@ -24,8 +24,8 @@
           </head>
           <body>
               <h1>Innovatech Solutions</h1>
-              <p>This web server was configured automatically using Ansible.</p>
-              <p>Version: 2.0</p>
+              <p>This web server was configured automatically using Ansible and is updated on every push to the main branch on GitHub.</p>
+              <p>Version: 2.1</p>
               <p>Server: {{ inventory_hostname }}</p>
           </body>
           </html>
