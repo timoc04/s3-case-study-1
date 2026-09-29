@@ -16,4 +16,4 @@ groups:
 compose:
   ansible_connection: '"amazon.aws.aws_ssm"'
   ansible_aws_ssm_region: '"eu-central-1"'
-  ansible_aws_ssm_bucket_name: '"innovatech-cs1-ansible-ssm-63622ddcec303396ce946e9897"'
+  ansible_aws_ssm_bucket_name: '"innovatech-cs1-ansible-ssm-bdbf71e362bdc097e953a7cd34"'
