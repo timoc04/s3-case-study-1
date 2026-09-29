@@ -23,15 +23,24 @@ jobs:
       - name: Verify Ansible installation
         run: ansible --version
 
-      - name: Get Ansible SSM bucket from Terraform
-        id: terraform-output
-        working-directory: terraform
+      - name: Get Ansible SSM bucket
+        id: ssm-bucket
         run: |
-          echo "bucket_name=$(terraform output -raw ansible_ssm_bucket_name)" >> "$GITHUB_OUTPUT"
+          BUCKET_NAME=$(aws s3api list-buckets \
+            --query "Buckets[?starts_with(Name, 'innovatech-cs1-ansible-ssm-')].Name | [0]" \
+            --output text)
+
+          if [ -z "$BUCKET_NAME" ] || [ "$BUCKET_NAME" = "None" ]; then
+            echo "No Ansible SSM bucket found"
+            exit 1
+          fi
+
+          echo "Found SSM bucket: $BUCKET_NAME"
+          echo "bucket_name=$BUCKET_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Deploy application with Ansible
         run: |
           ansible-playbook \
             -i ansible/inventory/aws_ec2.yml \
             ansible/playbooks/webserver.yml \
-            -e "ansible_aws_ssm_bucket_name=${{ steps.terraform-output.outputs.bucket_name }}"
+            -e "ansible_aws_ssm_bucket_name=${{ steps.ssm-bucket.outputs.bucket_name }}"
