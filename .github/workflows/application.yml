@@ -1,0 +1,30 @@
+name: Application Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ansible/**"
+      - "app/**"
+      - ".github/workflows/application.yml"
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy application
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Ansible installation
+        run: ansible --version
+
+      - name: Deploy application with Ansible
+        run: |
+          ansible-playbook \
+            -i ansible/inventory/aws_ec2.yml \
+            ansible/playbooks/webserver.yml
