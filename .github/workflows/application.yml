@@ -21,15 +21,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify Ansible installation
+        run: ansible --version
+
+      - name: Get Ansible SSM bucket from Terraform
+        id: terraform-output
+        working-directory: terraform
         run: |
-          which ansible
-          which ansible-playbook
-          ansible --version
-          ansible-galaxy collection list
-          ansible-doc -t connection amazon.aws.aws_ssm
+          echo "bucket_name=$(terraform output -raw ansible_ssm_bucket_name)" >> "$GITHUB_OUTPUT"
 
       - name: Deploy application with Ansible
         run: |
           ansible-playbook \
             -i ansible/inventory/aws_ec2.yml \
-            ansible/playbooks/webserver.yml
+            ansible/playbooks/webserver.yml \
+            -e "ansible_aws_ssm_bucket_name=${{ steps.terraform-output.outputs.bucket_name }}"
