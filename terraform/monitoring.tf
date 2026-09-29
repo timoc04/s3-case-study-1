@@ -5,7 +5,19 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
 }
 
 
-# High CPU utilisation alarm for the Auto Scaling Group
+# SNS topic for monitoring notifications
+resource "aws_sns_topic" "monitoring_alerts" {
+  name = "${var.project_name}-monitoring-alerts"
+}
+
+# Email subscription for monitoring notifications
+resource "aws_sns_topic_subscription" "monitoring_email" {
+  topic_arn = aws_sns_topic.monitoring_alerts.arn
+  protocol  = "email"
+  endpoint  = "timo.claessens@student.fontys.nl"
+}
+
+
 resource "aws_cloudwatch_metric_alarm" "high_cpu" {
   alarm_name          = "${var.project_name}-high-cpu"
   alarm_description   = "Triggers when average CPU utilisation of the web tier exceeds 80 percent"
@@ -22,11 +34,14 @@ resource "aws_cloudwatch_metric_alarm" "high_cpu" {
     AutoScalingGroupName = aws_autoscaling_group.web.name
   }
 
+  alarm_actions = [
+    aws_sns_topic.monitoring_alerts.arn
+  ]
+
   treat_missing_data = "notBreaching"
 }
 
 
-# Unhealthy target alarm for the Application Load Balancer
 resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
   alarm_name          = "${var.project_name}-unhealthy-targets"
   alarm_description   = "Triggers when one or more web server targets become unhealthy"
@@ -43,6 +58,10 @@ resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
     LoadBalancer = aws_lb.web.arn_suffix
     TargetGroup  = aws_lb_target_group.web.arn_suffix
   }
+
+  alarm_actions = [
+    aws_sns_topic.monitoring_alerts.arn
+  ]
 
   treat_missing_data = "notBreaching"
 }
