@@ -65,3 +65,98 @@ resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
 
   treat_missing_data = "notBreaching"
 }
+
+
+resource "aws_cloudwatch_dashboard" "main" {
+  dashboard_name = "${var.project_name}-monitoring"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+
+        properties = {
+          title   = "Web Tier CPU Utilisation"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          period  = 60
+          stat    = "Average"
+
+          metrics = [
+            [
+              "AWS/EC2",
+              "CPUUtilization",
+              "AutoScalingGroupName",
+              aws_autoscaling_group.web.name
+            ]
+          ]
+        }
+      },
+
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+
+        properties = {
+          title  = "ALB Target Health"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 60
+          stat   = "Average"
+
+          metrics = [
+            [
+              "AWS/ApplicationELB",
+              "HealthyHostCount",
+              "LoadBalancer",
+              aws_lb.web.arn_suffix,
+              "TargetGroup",
+              aws_lb_target_group.web.arn_suffix
+            ],
+            [
+              ".",
+              "UnHealthyHostCount",
+              ".",
+              ".",
+              ".",
+              "."
+            ]
+          ]
+        }
+      },
+
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+
+        properties = {
+          title  = "RDS CPU Utilisation"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 60
+          stat   = "Average"
+
+          metrics = [
+            [
+              "AWS/RDS",
+              "CPUUtilization",
+              "DBInstanceIdentifier",
+              aws_db_instance.main.identifier
+            ]
+          ]
+        }
+      }
+    ]
+  })
+}
