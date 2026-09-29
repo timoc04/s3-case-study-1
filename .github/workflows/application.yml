@@ -21,12 +21,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify Ansible installation
-          run: |
-            which ansible
-            which ansible-playbook
-            ansible --version
-            ansible-galaxy collection list
-            ansible-doc -t connection amazon.aws.aws_ssm
+        run: |
+          which ansible
+          which ansible-playbook
+          ansible --version
+          ansible-galaxy collection list
+          ansible-doc -t connection amazon.aws.aws_ssm
 
       - name: Deploy application with Ansible
         run: |
