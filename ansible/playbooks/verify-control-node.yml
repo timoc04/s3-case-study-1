@@ -1,0 +1,12 @@
+---
+- name: Verify the Ansible control node
+  hosts: control
+  gather_facts: true
+
+  tasks:
+    - name: Verify Ansible execution
+      ansible.builtin.ping:
+
+    - name: Display the hostname
+      ansible.builtin.debug:
+        msg: "Ansible is running on {{ ansible_hostname }}"
