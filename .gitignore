@@ -1,13 +1,21 @@
-# Terraform local files
-.terraform/
+# Terraform local files and state
+**/.terraform/*
 *.tfstate
 *.tfstate.*
+*.tfplan
 crash.log
-crash.*.log
 
-# Terraform variable files may contain secrets
-*.tfvars
-*.tfvars.json
+# Credentials and local environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
 
 # OS / editor
 .DS_Store
