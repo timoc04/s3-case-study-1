@@ -1,12 +1,11 @@
-name: Application Deployment
-
 on:
   push:
     branches:
       - main
     paths:
-      - "ansible/**"
       - "app/**"
+      - "ansible/playbooks/webserver.yml"
+      - "ansible/inventory/aws_ec2.yml"
       - ".github/workflows/application.yml"
 
   workflow_dispatch:

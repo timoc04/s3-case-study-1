@@ -1,0 +1,55 @@
+name: CS2 Control Node Verification
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ansible/inventory/cs2-local.yml"
+      - "ansible/playbooks/verify-control-node.yml"
+      - ".github/workflows/cs2-verification.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify Educloud control node
+    runs-on: [self-hosted, linux, x64, cs2-educloud]
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Ansible executable path
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify runner and tools
+        run: |
+          hostname
+          whoami
+          terraform version
+          ansible --version
+          python3 --version
+
+      - name: Check Ansible inventory
+        run: |
+          ansible-inventory \
+            -i ansible/inventory/cs2-local.yml \
+            --graph
+
+      - name: Check playbook syntax
+        run: |
+          ansible-playbook \
+            -i ansible/inventory/cs2-local.yml \
+            ansible/playbooks/verify-control-node.yml \
+            --syntax-check
+
+      - name: Verify control node
+        run: |
+          ansible-playbook \
+            -i ansible/inventory/cs2-local.yml \
+            ansible/playbooks/verify-control-node.yml
