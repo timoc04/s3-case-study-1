@@ -115,3 +115,25 @@ output "database_port" {
   description = "Port of the PostgreSQL RDS database"
   value       = aws_db_instance.main.port
 }
+
+
+# SOAR platform
+output "soar_instance_id" {
+  description = "EC2 instance ID of the SOAR host"
+  value       = aws_instance.soar.id
+}
+
+output "soar_private_ip" {
+  description = "Private IP address of the SOAR host"
+  value       = aws_instance.soar.private_ip
+}
+
+output "soar_subnet_id" {
+  description = "ID of the private SOAR subnet"
+  value       = aws_subnet.soar.id
+}
+
+output "soar_security_group_id" {
+  description = "Security group ID of the SOAR host"
+  value       = aws_security_group.soar.id
+} 
