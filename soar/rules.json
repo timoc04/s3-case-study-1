@@ -1,0 +1,14 @@
+[
+  {
+    "name": "failed_login_notification",
+    "event_type": "failed_login",
+    "severities": ["high", "critical"],
+    "actions": ["security_notification"]
+  },
+  {
+    "name": "service_unavailable_recovery",
+    "event_type": "service_unavailable",
+    "severities": ["high", "critical"],
+    "actions": ["service_recovery"]
+  }
+]

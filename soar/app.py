@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from flask import Flask, jsonify, request
+from rule_engine import evaluate_event
 
 logging.basicConfig(level=logging.INFO)
 
@@ -69,19 +70,26 @@ def receive_event():
     event_id = str(uuid4())
     received_at = datetime.now(timezone.utc).isoformat()
 
+    normalised_event = {
+        "event_type": event["event_type"].strip(),
+        "source": event["source"].strip(),
+        "severity": severity
+    }
+
+    evaluation = evaluate_event(normalised_event)
+
     app.logger.info(
-        "Event validated: id=%s severity=%s",
+        "Event evaluated: id=%s matched_rules=%s selected_actions=%s",
         event_id,
-        severity
+        evaluation["matched_rules"],
+        evaluation["selected_actions"]
     )
 
     return jsonify({
-        "status": "validated",
+        "status": "evaluated",
         "event_id": event_id,
         "received_at": received_at,
-        "event": {
-            "event_type": event["event_type"].strip(),
-            "source": event["source"].strip(),
-            "severity": severity
-        }
-    }), 200 
+        "event": normalised_event,
+        "matched_rules": evaluation["matched_rules"],
+        "selected_actions": evaluation["selected_actions"]
+    }), 200
