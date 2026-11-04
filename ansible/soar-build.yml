@@ -1,0 +1,60 @@
+---
+- name: Build the SOAR application image
+  hosts: soar
+  become: true
+
+  vars:
+    soar_build_directory: /opt/soar/build
+
+  tasks:
+    - name: Create the build directory
+      ansible.builtin.file:
+        path: "{{ soar_build_directory }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy application build files
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../soar/{{ item }}"
+        dest: "{{ soar_build_directory }}/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - Dockerfile
+        - .dockerignore
+        - requirements.txt
+        - app.py
+        - actions.py
+        - recovery.py
+        - rule_engine.py
+        - rules.json
+
+    - name: Build the Docker image
+      ansible.builtin.command:
+        argv:
+          - docker
+          - build
+          - --tag
+          - innovatech-soar:initial
+          - "{{ soar_build_directory }}"
+      register: soar_build
+      changed_when: true
+
+    - name: Verify the image exists
+      ansible.builtin.command:
+        argv:
+          - docker
+          - image
+          - inspect
+          - innovatech-soar:initial
+          - --format
+          - "{% raw %}{{.Id}}{% endraw %}"
+      register: soar_image
+      changed_when: false
+
+    - name: Display the image ID
+      ansible.builtin.debug:
+        msg: "{{ soar_image.stdout }}"
