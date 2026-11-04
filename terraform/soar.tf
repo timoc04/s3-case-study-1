@@ -83,8 +83,9 @@ resource "aws_instance" "soar" {
   }
 
   metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
   }
 
   depends_on = [
@@ -96,4 +97,32 @@ resource "aws_instance" "soar" {
     Name = "${var.project_name}-soar"
     Role = "soar"
   }
+}
+
+resource "aws_iam_role_policy" "soar_recovery" {
+  name = "${var.project_name}-soar-recovery"
+  role = aws_iam_role.soar_ssm.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "RunCommandsOnSoarHost"
+        Effect = "Allow"
+        Action = "ssm:SendCommand"
+
+        Resource = [
+          aws_instance.soar.arn,
+          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript"
+        ]
+      },
+      {
+        Sid      = "ReadCommandResults"
+        Effect   = "Allow"
+        Action   = "ssm:GetCommandInvocation"
+        Resource = "*"
+      }
+    ]
+  })
 }
