@@ -1,0 +1,71 @@
+---
+- name: Configure the SOAR recovery test service
+  hosts: soar
+  become: true
+
+  tasks:
+    - name: Install Python
+      ansible.builtin.dnf:
+        name: python3
+        state: present
+
+    - name: Create the test service directory
+      ansible.builtin.file:
+        path: /opt/soar-test-service
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create the test page
+      ansible.builtin.copy:
+        dest: /opt/soar-test-service/index.html
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          SOAR recovery test service is running.
+
+    - name: Configure the systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/soar-test-service.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=SOAR recovery test service
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=nobody
+          WorkingDirectory=/opt/soar-test-service
+          ExecStart=/usr/bin/python3 -m http.server 8081 --bind 127.0.0.1
+          Restart=no
+          NoNewPrivileges=true
+          ProtectSystem=strict
+          ProtectHome=true
+          PrivateTmp=true
+      register: test_service_unit
+
+    - name: Enable and start the test service
+      ansible.builtin.systemd_service:
+        name: soar-test-service
+        daemon_reload: true
+        enabled: true
+        state: "{{ 'restarted' if test_service_unit.changed else 'started' }}"
+
+    - name: Verify the test service HTTP response
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8081
+        status_code: 200
+        return_content: true
+      register: test_service_response
+      retries: 5
+      delay: 2
+      until: test_service_response.status == 200
+
+    - name: Display the test service response
+      ansible.builtin.debug:
+        msg: "{{ test_service_response.content }}"
