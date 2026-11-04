@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from flask import Flask, jsonify, request
 from rule_engine import evaluate_event
+from actions import execute_actions
 
 logging.basicConfig(level=logging.INFO)
 
@@ -78,6 +79,17 @@ def receive_event():
 
     evaluation = evaluate_event(normalised_event)
 
+    event_record = {
+        "event_id": event_id,
+        "received_at": received_at,
+        "event": normalised_event
+    }
+
+    action_results = execute_actions(
+        evaluation["selected_actions"],
+        event_record
+    )
+
     app.logger.info(
         "Event evaluated: id=%s matched_rules=%s selected_actions=%s",
         event_id,
@@ -86,10 +98,11 @@ def receive_event():
     )
 
     return jsonify({
-        "status": "evaluated",
+        "status": "processed",
         "event_id": event_id,
         "received_at": received_at,
         "event": normalised_event,
         "matched_rules": evaluation["matched_rules"],
-        "selected_actions": evaluation["selected_actions"]
+        "selected_actions": evaluation["selected_actions"],
+        "action_results": action_results
     }), 200

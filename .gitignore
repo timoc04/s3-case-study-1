@@ -11,6 +11,7 @@ crash.log
 !.env.example
 *.pem
 *.key
+soar/data/
 
 # Python
 __pycache__/
