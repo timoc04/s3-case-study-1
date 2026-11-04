@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from recovery import recover_service
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ def execute_actions(action_names, event_record):
     results = []
 
     for action_name in action_names:
+        if action_name == "service_recovery":
+            results.append(recover_service(event_record))
+            continue
         if action_name != "security_notification":
             results.append({
                 "action": action_name,
