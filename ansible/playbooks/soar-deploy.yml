@@ -1,0 +1,73 @@
+---
+- name: Deploy the SOAR application container
+  hosts: soar
+  become: true
+
+  vars_prompt:
+    - name: soar_api_token
+      prompt: "Enter the SOAR API token (at least 32 letters or digits)"
+      private: true
+
+  tasks:
+    - name: Validate the API token
+      ansible.builtin.assert:
+        that:
+          - soar_api_token is match('^[A-Za-z0-9]{32,}$')
+        fail_msg: "Use at least 32 letters or digits."
+      no_log: true
+
+    - name: Install Docker module dependency
+      ansible.builtin.dnf:
+        name: python3-requests
+        state: present
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd_service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create persistent application data directory
+      ansible.builtin.file:
+        path: /opt/soar/data
+        state: directory
+        owner: "10001"
+        group: "10001"
+        mode: "0700"
+
+    - name: Start the SOAR container
+      community.docker.docker_container:
+        name: innovatech-soar
+        image: innovatech-soar:initial
+        state: started
+        restart_policy: unless-stopped
+        published_ports:
+          - "127.0.0.1:5000:5000"
+        volumes:
+          - "/opt/soar/data:/app/data:rw"
+        env:
+          SOAR_API_TOKEN: "{{ soar_api_token }}"
+          SOAR_DATA_DIR: "/app/data"
+          SOAR_RECOVERY_INSTANCE_ID: "{{ inventory_hostname }}"
+          AWS_DEFAULT_REGION: "eu-central-1"
+        log_driver: json-file
+        log_options:
+          max-size: "10m"
+          max-file: "3"
+      no_log: true
+
+    - name: Verify the application health endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1:5000/health
+        status_code: 200
+        return_content: true
+      register: soar_health
+      retries: 10
+      delay: 3
+      until: >-
+        soar_health.status == 200 and
+        soar_health.json.status == 'ok'
+
+    - name: Display the health response
+      ansible.builtin.debug:
+        var: soar_health.json
