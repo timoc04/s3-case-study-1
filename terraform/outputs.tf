@@ -136,4 +136,26 @@ output "soar_subnet_id" {
 output "soar_security_group_id" {
   description = "Security group ID of the SOAR host"
   value       = aws_security_group.soar.id
-} 
+}
+
+
+# Monitoring platform
+output "monitoring_instance_id" {
+  description = "EC2 instance ID of the monitoring host"
+  value       = aws_instance.monitoring.id
+}
+
+output "monitoring_private_ip" {
+  description = "Private IP address of the monitoring host"
+  value       = aws_instance.monitoring.private_ip
+}
+
+output "monitoring_subnet_id" {
+  description = "ID of the private monitoring subnet"
+  value       = aws_subnet.monitoring.id
+}
+
+output "monitoring_security_group_id" {
+  description = "Security group ID of the monitoring host"
+  value       = aws_security_group.monitoring.id
+}
