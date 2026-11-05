@@ -3,10 +3,8 @@
   hosts: soar
   become: true
 
-  vars_prompt:
-    - name: soar_api_token
-      prompt: "Enter the SOAR API token (at least 32 letters or digits)"
-      private: true
+  vars:
+    soar_api_token: "{{ lookup('ansible.builtin.env', 'SOAR_API_TOKEN') }}"
 
   tasks:
     - name: Validate the API token
