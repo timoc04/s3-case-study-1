@@ -1,0 +1,116 @@
+name: SOAR Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "soar/**"
+      - "ansible/playbooks/soar-*.yml"
+      - "ansible/inventory/soar.aws_ec2.yml"
+      - ".github/workflows/soar.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soar-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy SOAR
+    runs-on: self-hosted
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      AWS_DEFAULT_REGION: eu-central-1
+      AWS_PAGER: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify runner tools and AWS access
+        run: |
+          set -euo pipefail
+          ansible --version
+          session-manager-plugin --version
+          aws sts get-caller-identity
+
+      - name: Get Ansible SSM bucket
+        run: |
+          set -euo pipefail
+
+          BUCKETS=$(aws s3api list-buckets \
+            --query "Buckets[?starts_with(Name, 'innovatech-cs1-ansible-ssm-')].Name" \
+            --output json)
+
+          BUCKET_NAME=$(python3 -c '
+          import json
+          import sys
+
+          buckets = json.load(sys.stdin)
+          if len(buckets) != 1:
+              sys.exit("Expected exactly one Ansible SSM bucket.")
+          print(buckets[0])
+          ' <<< "$BUCKETS")
+
+          echo "SOAR_SSM_BUCKET=$BUCKET_NAME" >> "$GITHUB_ENV"
+
+      - name: Verify SOAR inventory
+        run: |
+          set -euo pipefail
+
+          ansible-inventory \
+            -i ansible/inventory/soar.aws_ec2.yml \
+            --list > "$RUNNER_TEMP/soar-inventory.json"
+
+          python3 - "$RUNNER_TEMP/soar-inventory.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1]) as inventory_file:
+              inventory = json.load(inventory_file)
+
+          hosts = inventory.get("soar", {}).get("hosts", [])
+          if len(hosts) != 1:
+              sys.exit("Expected exactly one running SOAR host.")
+
+          print(f"SOAR target: {hosts[0]}")
+          PY
+
+      - name: Check playbook syntax
+        run: |
+          set -euo pipefail
+
+          for playbook in soar-host soar-test-service soar-build soar-deploy; do
+            ansible-playbook \
+              -i ansible/inventory/soar.aws_ec2.yml \
+              "ansible/playbooks/$playbook.yml" \
+              --syntax-check
+          done
+
+      - name: Configure host, build and deploy
+        env:
+          SOAR_API_TOKEN: ${{ secrets.SOAR_API_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$SOAR_API_TOKEN" =~ ^[A-Za-z0-9]{32,}$ ]]; then
+            echo "SOAR_API_TOKEN is missing or invalid."
+            exit 1
+          fi
+
+          for playbook in soar-host soar-test-service soar-build soar-deploy; do
+            ansible-playbook \
+              -i ansible/inventory/soar.aws_ec2.yml \
+              "ansible/playbooks/$playbook.yml" \
+              -e "ansible_aws_ssm_bucket_name=$SOAR_SSM_BUCKET"
+          done
