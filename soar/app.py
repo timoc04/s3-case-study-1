@@ -4,7 +4,16 @@ import secrets
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, g, jsonify, request
+from time import perf_counter
+
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Histogram,
+    generate_latest,
+)
+
 from rule_engine import evaluate_event
 from actions import execute_actions
 
@@ -20,6 +29,57 @@ if not API_TOKEN:
 
 ALLOWED_SEVERITIES = {"low", "medium", "high", "critical"}
 
+EVENT_REQUESTS = Counter(
+    "soar_event_requests_total",
+    "Requests to the event endpoint",
+    ["http_status"]
+)
+
+VALID_EVENTS = Counter(
+    "soar_valid_events_total",
+    "Security events that passed validation"
+)
+
+ACTION_RESULTS = Counter(
+    "soar_action_results_total",
+    "Results returned by response actions",
+    ["action", "status"]
+)
+
+EVENT_DURATION = Histogram(
+    "soar_event_request_duration_seconds",
+    "Time spent handling event requests",
+    buckets=(0.01, 0.1, 0.5, 1, 5, 15, 30, 60, 120)
+)
+
+
+@app.before_request
+def start_event_timer():
+    if request.endpoint == "receive_event":
+        g.event_started_at = perf_counter()
+
+
+@app.after_request
+def record_event_request(response):
+    if request.endpoint == "receive_event":
+        EVENT_REQUESTS.labels(
+            http_status=str(response.status_code)
+        ).inc()
+
+        started_at = getattr(g, "event_started_at", None)
+
+        if started_at is not None:
+            EVENT_DURATION.observe(perf_counter() - started_at)
+
+    return response
+
+
+@app.get("/metrics")
+def metrics():
+    return Response(
+        generate_latest(),
+        content_type=CONTENT_TYPE_LATEST
+    )
 
 @app.get("/health")
 def health():
@@ -77,6 +137,8 @@ def receive_event():
         "severity": severity
     }
 
+    VALID_EVENTS.inc()
+
     evaluation = evaluate_event(normalised_event)
 
     event_record = {
@@ -89,6 +151,12 @@ def receive_event():
         evaluation["selected_actions"],
         event_record
     )
+
+    for result in action_results:
+        ACTION_RESULTS.labels(
+            action=result["action"],
+            status=result["status"]
+        ).inc()
 
     app.logger.info(
         "Event evaluated: id=%s matched_rules=%s selected_actions=%s",
