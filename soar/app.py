@@ -85,7 +85,8 @@ def metrics():
 def health():
     return jsonify({
         "status": "ok",
-        "service": "innovatech-soar"
+        "service": "innovatech-soar",
+        "version": "0.2.0"
     }), 200
 
 
