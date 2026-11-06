@@ -81,6 +81,7 @@ def metrics():
         content_type=CONTENT_TYPE_LATEST
     )
 
+
 @app.get("/health")
 def health():
     return jsonify({
