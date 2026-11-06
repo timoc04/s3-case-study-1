@@ -1,0 +1,19 @@
+plugin: amazon.aws.aws_ec2
+
+regions:
+  - eu-central-1
+
+filters:
+  tag:Role: monitoring
+  instance-state-name: running
+
+hostnames:
+  - instance-id
+
+groups:
+  monitoring: true
+
+compose:
+  ansible_connection: '"amazon.aws.aws_ssm"'
+  ansible_aws_ssm_region: '"eu-central-1"'
+  ansible_python_interpreter: '"/usr/bin/python3"'
