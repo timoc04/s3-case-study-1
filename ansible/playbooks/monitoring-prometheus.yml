@@ -5,6 +5,19 @@
 
   vars:
     prometheus_image: prom/prometheus:v3.5.0
+  
+  pre_tasks:
+    - name: Verify that exactly one SOAR host was discovered
+      ansible.builtin.assert:
+        that:
+          - groups.get('soar', []) | length == 1
+        fail_msg: Expected exactly one running SOAR host.
+
+    - name: Verify that the SOAR private IP is available
+      ansible.builtin.assert:
+        that:
+          - hostvars[groups['soar'][0]]['private_ip_address'] is defined
+        fail_msg: The SOAR inventory must provide a private IP address.
 
   tasks:
     - name: Create the Prometheus configuration directory
@@ -15,9 +28,9 @@
         group: root
         mode: "0755"
 
-    - name: Copy the Prometheus configuration
-      ansible.builtin.copy:
-        src: ../../monitoring/prometheus/prometheus.yml
+    - name: Render the Prometheus configuration
+      ansible.builtin.template:
+        src: ../../monitoring/prometheus/prometheus.yml.j2
         dest: /opt/monitoring/prometheus/prometheus.yml
         owner: root
         group: root
