@@ -22,6 +22,14 @@ resource "aws_security_group" "soar" {
   description = "Security group for the private SOAR platform"
   vpc_id      = aws_vpc.main.id
 
+  ingress {
+    description     = "Allow monitoring platform to access SOAR"
+    from_port       = 5000
+    to_port         = 5000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.monitoring.id]
+  }
+
   egress {
     description = "Allow outbound connectivity"
     from_port   = 0

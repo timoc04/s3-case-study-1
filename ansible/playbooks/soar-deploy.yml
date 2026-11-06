@@ -40,7 +40,7 @@
         state: started
         restart_policy: unless-stopped
         published_ports:
-          - "127.0.0.1:5000:5000"
+          - "0.0.0.0:5000:5000"
         volumes:
           - "/opt/soar/data:/app/data:rw"
         env:
