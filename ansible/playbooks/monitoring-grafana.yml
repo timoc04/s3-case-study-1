@@ -43,13 +43,41 @@
         name: grafana-data
         state: present
 
+    - name: Create dashboard directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /opt/monitoring/grafana/provisioning/dashboards
+        - /opt/monitoring/grafana/dashboards
+
+    - name: Copy the dashboard provider
+      ansible.builtin.copy:
+        src: ../../monitoring/grafana/provisioning/dashboards/default.yml
+        dest: /opt/monitoring/grafana/provisioning/dashboards/default.yml
+        owner: root
+        group: root
+        mode: "0644"
+      register: grafana_dashboard_provider
+
+    - name: Copy the SOAR dashboard
+      ansible.builtin.copy:
+        src: ../../monitoring/grafana/dashboards/soar-overview.json
+        dest: /opt/monitoring/grafana/dashboards/soar-overview.json
+        owner: root
+        group: root
+        mode: "0644"
+
     - name: Start Grafana
       community.docker.docker_container:
         name: grafana
         image: "{{ grafana_image }}"
         state: started
         restart_policy: unless-stopped
-        restart: "{{ grafana_datasource.changed }}"
+        restart: "{{ grafana_datasource.changed or grafana_dashboard_provider.changed }}"
         networks:
           - name: monitoring
         published_ports:
@@ -57,6 +85,8 @@
         volumes:
           - grafana-data:/var/lib/grafana
           - /opt/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+          - /opt/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+          - /opt/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
         env:
           GF_SECURITY_ADMIN_USER: admin
           GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
