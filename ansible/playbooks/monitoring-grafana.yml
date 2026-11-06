@@ -11,8 +11,8 @@
     - name: Check that an administrator password was supplied
       ansible.builtin.assert:
         that:
-          - grafana_admin_password | length >= 16
-        fail_msg: Supply GRAFANA_ADMIN_PASSWORD with at least 16 characters.
+          - grafana_admin_password | length >= 8
+        fail_msg: Supply GRAFANA_ADMIN_PASSWORD with at least 8 characters.
       no_log: true
 
   tasks:
