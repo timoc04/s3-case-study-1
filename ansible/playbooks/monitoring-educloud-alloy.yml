@@ -1,0 +1,37 @@
+---
+- name: Configure Grafana Alloy on the Educloud host
+  hosts: localhost
+  connection: local
+  become: true
+
+  tasks:
+    - name: Grant Alloy access to journal and Nginx logs
+      ansible.builtin.user:
+        name: alloy
+        groups:
+          - systemd-journal
+          - adm
+        append: true
+      notify: Restart Alloy
+
+    - name: Deploy and validate the Alloy configuration
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/educloud-config.alloy"
+        dest: /etc/alloy/config.alloy
+        owner: root
+        group: alloy
+        mode: "0640"
+        validate: /usr/bin/alloy validate %s
+      notify: Restart Alloy
+
+    - name: Enable and start Alloy
+      ansible.builtin.systemd_service:
+        name: alloy
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Restart Alloy
+      ansible.builtin.systemd_service:
+        name: alloy
+        state: restarted

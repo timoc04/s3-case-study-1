@@ -1,0 +1,49 @@
+// Sample config for Alloy.
+//
+// For a full configuration reference, see https://grafana.com/docs/alloy
+logging {
+  level = "warn"
+}
+
+prometheus.exporter.unix "default" {
+  include_exporter_metrics = true
+  disable_collectors       = ["mdadm"]
+}
+
+prometheus.scrape "default" {
+  targets = array.concat(
+    prometheus.exporter.unix.default.targets,
+    [{
+      // Self-collect metrics
+      job         = "alloy",
+      __address__ = "127.0.0.1:12345",
+    }],
+  )
+
+  forward_to = [
+  // TODO: components to forward metrics to (like prometheus.remote_write or
+  // prometheus.relabel).
+  ]
+}
+
+loki.source.journal "educloud_test" {
+  matches    = "SYSLOG_IDENTIFIER=cs2-educloud-test"
+  labels     = { source = "educloud-journal", host = "cs2-tailscale-vpn" }
+  forward_to = [loki.write.aws_monitoring.receiver]
+}
+
+loki.write "aws_monitoring" {
+  endpoint {
+    url = "http://100.64.224.86:3100/loki/api/v1/push"
+  }
+}
+
+loki.source.file "nginx_access" {
+  targets = [{
+    __path__ = "/var/log/nginx/access.log",
+    source   = "educloud-nginx-access",
+    host     = "cs2-tailscale-vpn",
+  }]
+
+  forward_to = [loki.write.aws_monitoring.receiver]
+}
