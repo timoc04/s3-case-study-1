@@ -1,0 +1,70 @@
+---
+- name: Deploy Loki
+  hosts: monitoring
+  become: true
+
+  vars:
+    loki_image: grafana/loki:3.5.0
+
+  tasks:
+    - name: Create the Loki configuration directory
+      ansible.builtin.file:
+        path: /opt/monitoring/loki
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy the Loki configuration
+      ansible.builtin.copy:
+        src: ../../monitoring/loki/loki.yml
+        dest: /opt/monitoring/loki/loki.yml
+        owner: root
+        group: root
+        mode: "0644"
+      register: loki_config
+
+    - name: Ensure the monitoring Docker network exists
+      community.docker.docker_network:
+        name: monitoring
+        state: present
+
+    - name: Create the Loki data volume
+      community.docker.docker_volume:
+        name: loki-data
+        state: present
+
+    - name: Start Loki
+      community.docker.docker_container:
+        name: loki
+        image: "{{ loki_image }}"
+        state: started
+        restart_policy: unless-stopped
+        restart: "{{ loki_config.changed }}"
+        networks:
+          - name: monitoring
+        published_ports:
+          - "127.0.0.1:3100:3100"
+        volumes:
+          - /opt/monitoring/loki/loki.yml:/etc/loki/config.yml:ro
+          - loki-data:/loki
+        command:
+          - -config.file=/etc/loki/config.yml
+        log_driver: json-file
+        log_options:
+          max-size: "10m"
+          max-file: "3"
+
+    - name: Wait for Loki readiness
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3100/ready
+        status_code: 200
+        return_content: true
+      register: loki_ready
+      until: loki_ready.status | default(0) == 200
+      retries: 40
+      delay: 3
+
+    - name: Display Loki readiness
+      ansible.builtin.debug:
+        msg: "{{ loki_ready.content | trim }}"
