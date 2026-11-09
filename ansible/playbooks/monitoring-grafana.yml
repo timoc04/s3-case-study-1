@@ -33,6 +33,15 @@
         mode: "0644"
       register: grafana_datasource
 
+    - name: Copy the Loki data source configuration
+      ansible.builtin.copy:
+        src: ../../monitoring/grafana/provisioning/datasources/loki.yml
+        dest: /opt/monitoring/grafana/provisioning/datasources/loki.yml
+        owner: root
+        group: root
+        mode: "0644"
+      register: grafana_loki_datasource
+
     - name: Ensure the monitoring Docker network exists
       community.docker.docker_network:
         name: monitoring
@@ -77,7 +86,7 @@
         image: "{{ grafana_image }}"
         state: started
         restart_policy: unless-stopped
-        restart: "{{ grafana_datasource.changed or grafana_dashboard_provider.changed }}"
+        restart: "{{ grafana_datasource.changed or grafana_loki_datasource.changed or grafana_dashboard_provider.changed }}"
         networks:
           - name: monitoring
         published_ports:
