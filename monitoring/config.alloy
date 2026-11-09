@@ -1,0 +1,12 @@
+loki.source.journal "monitoring_host" {
+  max_age    = "15m"
+  matches    = "SYSLOG_IDENTIFIER=cs2-alloy-test"
+  labels     = { source = "monitoring-host-journal" }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

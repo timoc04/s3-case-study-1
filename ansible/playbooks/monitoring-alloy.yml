@@ -1,0 +1,39 @@
+---
+- name: Deploy Grafana Alloy
+  hosts: monitoring
+  become: true
+
+  tasks:
+    - name: Create the Alloy configuration directory
+      ansible.builtin.file:
+        path: /opt/monitoring/alloy
+        state: directory
+        mode: "0755"
+
+    - name: Copy the Alloy configuration
+      ansible.builtin.copy:
+        src: ../../monitoring/alloy/config.alloy
+        dest: /opt/monitoring/alloy/config.alloy
+        mode: "0644"
+      register: alloy_config
+
+    - name: Start Alloy on the monitoring network
+      community.docker.docker_container:
+        name: alloy
+        image: grafana/alloy:v1.21.3
+        state: started
+        restart_policy: unless-stopped
+        restart: "{{ alloy_config.changed }}"
+        user: "0:0"
+        networks:
+          - name: monitoring
+        volumes:
+          - /opt/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+          - /var/log:/var/log:ro
+          - /run/log:/run/log:ro
+          - /etc/machine-id:/etc/machine-id:ro
+          - alloy-data:/var/lib/alloy/data
+        command:
+          - run
+          - --storage.path=/var/lib/alloy/data
+          - /etc/alloy/config.alloy
