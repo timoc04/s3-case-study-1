@@ -1,0 +1,19 @@
+---
+all:
+  children:
+    update_targets:
+      children:
+        educloud:
+          hosts:
+            educloud_log_source:
+              ansible_host: 100.75.184.64
+              ansible_user: ubuntu
+              ansible_connection: ssh
+              ansible_python_interpreter: /usr/bin/python3
+
+    update_control:
+      hosts:
+        cs2_runner:
+          ansible_host: localhost
+          ansible_connection: local
+          ansible_python_interpreter: /usr/bin/python3
