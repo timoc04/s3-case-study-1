@@ -8,6 +8,7 @@ all:
             educloud_log_source:
               ansible_host: 100.75.184.64
               ansible_user: ubuntu
+              ansible_ssh_private_key_file: /home/ubuntu/.ssh/cs2_updates
               ansible_connection: ssh
               ansible_python_interpreter: /usr/bin/python3
 
