@@ -1,0 +1,138 @@
+name: System Updates
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: system-updates
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: [self-hosted, cs2-educloud]
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      AWS_DEFAULT_REGION: eu-central-1
+      AWS_PAGER: ""
+      ANSIBLE_HOST_KEY_CHECKING: "True"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify runner access
+        run: |
+          set -euo pipefail
+          ansible --version
+          session-manager-plugin --version
+          aws sts get-caller-identity
+          test -r /home/ubuntu/.ssh/cs2_updates
+
+      - name: Find the SSM transfer bucket
+        run: |
+          set -euo pipefail
+
+          aws s3api list-buckets \
+            --query "Buckets[?starts_with(Name, 'innovatech-cs1-ansible-ssm-')].Name" \
+            --output json > "$RUNNER_TEMP/update-buckets.json"
+
+          BUCKET_NAME=$(python3 - "$RUNNER_TEMP/update-buckets.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1]) as source:
+              buckets = json.load(source)
+
+          if len(buckets) != 1:
+              sys.exit("Expected exactly one SSM transfer bucket.")
+
+          print(buckets[0])
+          PY
+          )
+
+          echo "UPDATE_SSM_BUCKET=$BUCKET_NAME" >> "$GITHUB_ENV"
+
+      - name: Verify the update inventory
+        run: |
+          set -euo pipefail
+
+          ansible-inventory \
+            -i ansible/inventory/aws_ec2.yml \
+            -i ansible/inventory/soar.aws_ec2.yml \
+            -i ansible/inventory/monitoring.aws_ec2.yml \
+            -i ansible/inventory/updates-educloud.yml \
+            -i ansible/inventory/updates-groups.yml \
+            --list > "$RUNNER_TEMP/update-inventory.json"
+
+          python3 - "$RUNNER_TEMP/update-inventory.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1]) as source:
+              inventory = json.load(source)
+
+          def hosts(group):
+              entry = inventory.get(group, {})
+              result = set(entry.get("hosts", []))
+              for child in entry.get("children", []):
+                  result.update(hosts(child))
+              return result
+
+          expected = {
+              "webservers": 2,
+              "soar": 1,
+              "monitoring": 1,
+              "educloud": 1,
+          }
+
+          for group, count in expected.items():
+              selected = hosts(group)
+              print(f"{group}: {sorted(selected)}")
+              if len(selected) != count:
+                  sys.exit(f"Expected {count} hosts in {group}.")
+
+          if len(hosts("update_targets")) != 5:
+              sys.exit("Expected exactly five remote update targets.")
+
+          if hosts("update_targets") & hosts("update_control"):
+              sys.exit("The runner must not be a remote update target.")
+          PY
+
+      - name: Check playbook syntax
+        run: |
+          set -euo pipefail
+          ansible-playbook \
+            -i ansible/inventory/updates-educloud.yml \
+            ansible/playbooks/system-updates.yml \
+            --syntax-check
+
+      - name: Update the Educloud log source
+        run: |
+          set -euo pipefail
+          ansible-playbook \
+            -i ansible/inventory/updates-educloud.yml \
+            ansible/playbooks/system-updates.yml \
+            --limit educloud
+
+      - name: Update AWS hosts
+        run: |
+          set -euo pipefail
+          ansible-playbook \
+            -i ansible/inventory/aws_ec2.yml \
+            -i ansible/inventory/soar.aws_ec2.yml \
+            -i ansible/inventory/monitoring.aws_ec2.yml \
+            -i ansible/inventory/updates-groups.yml \
+            ansible/playbooks/system-updates.yml \
+            --limit 'webservers:soar:monitoring' \
+            -e "ansible_connection=amazon.aws.aws_ssm" \
+            -e "ansible_aws_ssm_bucket_name=$UPDATE_SSM_BUCKET"
