@@ -1,0 +1,30 @@
+---
+- name: Update the Educloud runner
+  hosts: update_control
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Verify Ubuntu
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+        fail_msg: "This playbook supports Ubuntu."
+
+    - name: Update Ubuntu packages
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        upgrade: dist
+        lock_timeout: 300
+
+    - name: Check whether a reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: runner_reboot
+
+    - name: Report reboot requirement
+      ansible.builtin.debug:
+        msg: >-
+          Reboot required: {{ runner_reboot.stat.exists }}.
+          Reboot the runner separately when no workflow jobs are running.
