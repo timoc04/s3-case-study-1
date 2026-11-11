@@ -1,0 +1,57 @@
+---
+- name: Update operating system packages on managed servers
+  hosts: update_targets
+  become: true
+  gather_facts: true
+  serial: 1
+  any_errors_fatal: true
+
+  pre_tasks:
+    - name: Verify the supported operating system
+      ansible.builtin.assert:
+        that:
+          - >-
+            ansible_facts['distribution'] == 'Ubuntu'
+            or
+            (
+              ansible_facts['distribution'] == 'Amazon'
+              and ansible_facts['distribution_major_version'] == '2023'
+            )
+        fail_msg: "This playbook supports Ubuntu and Amazon Linux 2023."
+
+  tasks:
+    - name: Update Ubuntu packages
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        upgrade: dist
+        lock_timeout: 300
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Update Amazon Linux packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+      when: ansible_facts['distribution'] == 'Amazon'
+
+    - name: Check whether Ubuntu requires a reboot
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: ubuntu_reboot
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Report Ubuntu reboot requirement
+      ansible.builtin.debug:
+        msg: >-
+          Reboot required: {{ ubuntu_reboot.stat.exists }}.
+          This playbook does not reboot the host.
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Report Amazon Linux reboot policy
+      ansible.builtin.debug:
+        msg: >-
+          Package updates completed within the configured Amazon Linux
+          release. Reboot requirements must be checked separately.
+          This playbook does not reboot the host.
+      when: ansible_facts['distribution'] == 'Amazon'
