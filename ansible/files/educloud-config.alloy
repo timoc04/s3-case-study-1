@@ -34,7 +34,7 @@ loki.source.journal "educloud_test" {
 
 loki.write "aws_monitoring" {
   endpoint {
-    url = "http://100.64.224.86:3100/loki/api/v1/push"
+    url = "http://100.75.176.120:3100/loki/api/v1/push"
   }
 }
 
